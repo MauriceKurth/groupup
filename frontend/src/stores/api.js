@@ -1,70 +1,71 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-// URL de base de l'API
-const API_URL = 'http://localhost:8000/api' // Utilise le proxy en dev
+const API_URL = 'http://localhost:8000/api'
 
 export const useApiStore = defineStore('api', () => {
-  // État de chargement global
   const loading = ref(false)
   const error = ref(null)
 
-  // Helper pour les requêtes
+  function getAuthToken() {
+    return localStorage.getItem('jwt_token')
+  }
+
   async function fetchApi(endpoint, options = {}) {
     loading.value = true
     error.value = null
 
     const url = `${API_URL}${endpoint}`
-    console.log('Fetching:', url) // Debug
+
+    const headers = {
+      Accept: 'application/ld+json',
+      ...options.headers,
+    }
+
+    if (options.method && ['POST', 'PUT', 'PATCH'].includes(options.method)) {
+      headers['Content-Type'] = 'application/ld+json'
+    }
+
+    const token = getAuthToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
 
     try {
       const response = await fetch(url, {
-        headers: {
-          Accept: 'application/ld+json',
-          ...options.headers,
-        },
+        headers,
         ...options,
       })
 
-      console.log('Response status:', response.status) // Debug
+      if (response.status === 401) {
+        localStorage.removeItem('jwt_token')
+        localStorage.removeItem('currentUser')
+        window.location.href = '/login'
+        throw new Error('Session expirée')
+      }
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Error response:', errorText)
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}` + `${errorText}`)
       }
 
       const data = await response.json()
-      console.log('Data received:', data) // Debug
-      return data
+      return { ...data }
     } catch (err) {
       error.value = err.message
-      console.error('Fetch error:', err)
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Méthodes CRUD génériques
   const get = (endpoint) => fetchApi(endpoint)
-
   const post = (endpoint, data) =>
-    fetchApi(endpoint, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-
-  const put = (endpoint, data) =>
-    fetchApi(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
-
-  const remove = (endpoint) =>
-    fetchApi(endpoint, {
-      method: 'DELETE',
-    })
+    fetchApi(endpoint, { method: 'POST', body: JSON.stringify(data) })
+  const put = (endpoint, data) => fetchApi(endpoint, { method: 'PUT', body: JSON.stringify(data) })
+  const patch = (endpoint, data) =>
+    fetchApi(endpoint, { method: 'PATCH', body: JSON.stringify(data) })
+  const remove = (endpoint) => fetchApi(endpoint, { method: 'DELETE' })
 
   return {
     loading,
@@ -72,7 +73,9 @@ export const useApiStore = defineStore('api', () => {
     get,
     post,
     put,
+    patch,
     remove,
     fetchApi,
+    getAuthToken,
   }
 })

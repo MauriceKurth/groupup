@@ -2,7 +2,7 @@
 
 namespace App\Entity;
 
-
+use Symfony\Component\Serializer\Annotation\Groups;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
@@ -14,11 +14,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: MembershipRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
+    normalizationContext: ['groups' => ['membership:read']], // ✨ AJOUTÉ
+    denormalizationContext: ['groups' => ['membership:write']], // ✨ AJOUTÉ
     operations: [
         new GetCollection(),
         new Get(),
         new Post(),
-        new Delete(), // Pas de PUT, on ne modifie pas, on supprime et recrée
+        new Delete(),
     ],
 )]
 class Membership
@@ -26,20 +28,25 @@ class Membership
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['membership:read', 'team:read'])] // ✨ AJOUTÉ
     private ?int $id = null;
 
     #[ORM\Column(length: 20)]
+    #[Groups(['membership:read', 'membership:write', 'team:read'])] // ✨ AJOUTÉ
     private ?string $role = null;
 
     #[ORM\Column]
+    #[Groups(['membership:read', 'team:read'])] // ✨ AJOUTÉ
     private ?\DateTimeImmutable $joinedAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'memberships')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['membership:read', 'membership:write', 'team:read'])] // ✨ AJOUTÉ
     private ?User $member = null;
 
     #[ORM\ManyToOne(inversedBy: 'memberships')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['membership:read', 'membership:write'])] // ✨ AJOUTÉ
     private ?Team $team = null;
 
     #[ORM\PrePersist]
@@ -49,7 +56,6 @@ class Membership
             $this->joinedAt = new \DateTimeImmutable();
         }
     }
-
 
     public function getId(): ?int
     {

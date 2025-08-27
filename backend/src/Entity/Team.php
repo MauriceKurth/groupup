@@ -2,13 +2,15 @@
 
 namespace App\Entity;
 
-
+use Symfony\Component\Serializer\Annotation\Groups;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\TeamRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -18,67 +20,83 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: TeamRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
+    normalizationContext: ['groups' => ['team:read']],
+    denormalizationContext: ['groups' => ['team:write']],
     operations: [
-        new GetCollection(),
+        new GetCollection(
+            // ✨ NOUVEAU : Pas de restriction de sécurité pour l'instant
+        ),
         new Get(),
         new Post(),
         new Put(),
         new Delete(),
     ],
 )]
+// ✨ NOUVEAU : Filtre pour pouvoir chercher par creator
+#[ApiFilter(SearchFilter::class, properties: ['creator' => 'exact'])]
 class Team
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['team:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['team:read', 'team:write'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['team:read', 'team:write'])]
     private ?string $description = null;
 
     #[ORM\Column(length: 10)]
+    #[Groups(['team:read'])]
     private ?string $inviteCode = null;
 
     #[ORM\Column]
+    #[Groups(['team:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'createdTeams')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['team:read'])]
     private ?User $creator = null;
 
     /**
      * @var Collection<int, Event>
      */
     #[ORM\OneToMany(targetEntity: Event::class, mappedBy: 'team')]
+    #[Groups(['team:read'])]
     private Collection $events;
 
     /**
      * @var Collection<int, Membership>
      */
     #[ORM\OneToMany(targetEntity: Membership::class, mappedBy: 'team', orphanRemoval: true)]
+    #[Groups(['team:read'])]
     private Collection $memberships;
-
-
-    #[ORM\PrePersist] //se passe avant l'enregistrement en bdd
-    public function setCreatedAtValue(): void
-    {
-        if ($this->createdAt === null) {
-            $this->createdAt = new \DateTimeImmutable();
-        }
-        // Génère aussi un code d'invitation si pas défini
-        if ($this->inviteCode === null) {
-            $this->inviteCode = strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
-        }
-    }
-
 
     public function __construct()
     {
         $this->events = new ArrayCollection();
         $this->memberships = new ArrayCollection();
+    }
+
+    #[ORM\PrePersist]
+    public function setCreatedAtValue(): void
+    {
+        if ($this->createdAt === null) {
+            $this->createdAt = new \DateTimeImmutable();
+        }
+    }
+
+    #[ORM\PrePersist]
+    public function generateInviteCode(): void
+    {
+        if ($this->inviteCode === null) {
+            $this->inviteCode = strtoupper(substr(uniqid(), -6));
+        }
     }
 
     public function getId(): ?int
@@ -167,7 +185,6 @@ class Team
     public function removeEvent(Event $event): static
     {
         if ($this->events->removeElement($event)) {
-            // set the owning side to null (unless already changed)
             if ($event->getTeam() === $this) {
                 $event->setTeam(null);
             }
@@ -197,7 +214,6 @@ class Team
     public function removeMembership(Membership $membership): static
     {
         if ($this->memberships->removeElement($membership)) {
-            // set the owning side to null (unless already changed)
             if ($membership->getTeam() === $this) {
                 $membership->setTeam(null);
             }
