@@ -1,0 +1,117 @@
+### USERS ###
+
+### Get all users
+GET http://localhost:8000/api/users
+Accept: application/ld+json
+
+### Get specific user
+GET http://localhost:8000/api/users/1
+Accept: application/ld+json
+
+### Create new user
+POST http://localhost:8000/api/users
+Content-Type: application/ld+json
+
+{
+  "email": "nouveau@test.fr",
+  "password": "password123",
+  "firstName": "Jean",
+  "lastName": "Nouveau"
+}
+
+### Update user
+PUT http://localhost:8000/api/users/1
+Content-Type: application/ld+json
+
+{
+  "email": "test@groupup.fr",
+  "password": "password123",
+  "firstName": "Jean",
+  "lastName": "Dupont Modifié"
+}
+
+### TEAMS ###
+
+### Get all teams
+GET http://localhost:8000/api/teams
+Accept: application/ld+json
+
+### Get specific team
+GET http://localhost:8000/api/teams/1
+Accept: application/ld+json
+
+### Create new team
+POST http://localhost:8000/api/teams
+Content-Type: application/ld+json
+
+{
+  "name": "Nouvelle Team",
+  "description": "Description de la team",
+  "creator": "/api/users/1"
+}
+
+### EVENTS ###
+
+### Get all events
+GET http://localhost:8000/api/events
+Accept: application/ld+json
+
+### Create new event
+POST http://localhost:8000/api/events
+Content-Type: application/ld+json
+
+{
+  "title": "Nouvel Événement",
+  "description": "Description de l'événement",
+  "proposedDate": "2024-03-15T19:00:00+00:00",
+  "location": "Strasbourg",
+  "team": "/api/teams/1",
+  "createdBy": "/api/users/1"
+}
+
+### MEMBERSHIPS ###
+
+### Get all memberships
+GET http://localhost:8000/api/memberships
+Accept: application/ld+json
+
+### Add member to team
+POST http://localhost:8000/api/memberships
+Content-Type: application/ld+json
+
+{
+  "member": "/api/users/2",
+  "team": "/api/teams/1",
+  "role": "member"
+}
+
+### PARTICIPATIONS ###
+
+### Get all participations
+GET http://localhost:8000/api/participations
+Accept: application/ld+json
+
+### Add participation to event
+POST http://localhost:8000/api/participations
+Content-Type: application/ld+json
+
+{
+  "participant": "/api/users/1",
+  "event": "/api/events/1",
+  "status": "present"
+}
+
+### CUSTOM ENDPOINTS ###
+
+### Join team with invite code
+POST http://localhost:8000/api/custom/join-team
+Content-Type: application/json
+
+{
+  "inviteCode": "ABC123",
+  "userId": 2
+}
+
+### Get event statistics
+GET http://localhost:8000/api/custom/event/1/stats
+Accept: application/json
